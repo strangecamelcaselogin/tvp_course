@@ -4,21 +4,11 @@ from collections import namedtuple
 
 from typing import List, Union, Any, Dict, Tuple, TypeVar
 
-# l - откуда связь, r - куда
-Rule = namedtuple('Rule', ['l', 'r'])
-
-
-class PointError(Exception):
-    """
-    Возникает, когда количество фишек у позиции меньше 0.
-      Сигнализирует о невозможности перехода
-    """
-    pass
-
 
 class EntityError(Exception):
     """
-
+    Возникает, когда количество фишек у позиции меньше 0.
+      Сигнализирует о невозможности перехода
     """
     pass
 
@@ -55,7 +45,7 @@ class Position(Entity):
     def sub_points(self, count: int):
         self.points = self.points - count
         if self.points < 0:
-            raise PointError("Attempt to sub {} points from '{}' point violates zero points constraint".format(count, self.name))
+            raise EntityError("Attempt to sub {} points from '{}' point violates zero points constraint".format(count, self.name))
 
 
 class Transition(Entity):
@@ -68,81 +58,90 @@ class Transition(Entity):
         self.name = name
 
 
+class EntitySearchError(Exception):
+    """
+    Возникает, если сущность с указанным имененм не существует
+    """
+    pass
+
+
 T = TypeVar('T', Position, Transition)
 def find_entity_by_name(entities: List[T], name: str) -> T:
     for e in entities:
         if e.name == name:
             return e
 
-    raise EntityError("Can not find Entity: '{}'".format(name))
+    raise EntitySearchError("Can not find Entity: '{}'".format(name))
 
 
-def fetch_positions(t: Transition, rules: List[Rule]) -> Tuple[List[Any], List[Any]]:
-    """
-    Вычислить позиции входящих и выходящих точек из перехода
-    rules:
-        [Rule(l=Entity(name='T1'), r=[Entity(name='P1', points='0')]),
-         Rule(l=Entity(name='P1', points='0'), r=[Entity(name='T2'), Entity(name='T4')]),
-         Rule(l=Entity(name='T2'), r=[Entity(name='P1', points='0'), Entity(name='P1', points='0'), Entity(name='P2', points='0')]),
-         Rule(l=Entity(name='P2', points='0'), r=[Entity(name='T3'), Entity(name='T4')]),
-         Rule(l=Entity(name='T4'), r=[Entity(name='P3', points='0'), Entity(name='P4', points='0')])]
-    """
-    t_name = t.name.lower()  # имя перехода
-    input_positions = []  # позиции, куда ведет переход
-    output_positions = []  # позиции откуда исходит переход
+class Parser:
+    _Rule = namedtuple('Rule', ['l', 'r'])  # l - откуда связь, r - куда
+    _PART_SPLITTER = re.compile(r'(\w+)\s*->\s*(.*)')  # для разделения правил на части
+    _QUANTIFIER_SPLITTER = re.compile(r'(?:(\d+)\s*\*\s*)?(\w+\d+)')  # для обработки правой части правил (2*P1 3*P2 P4)
 
-    for l, r in rules:
-        if l.name.lower() == t_name:  # если слева искомое имя перехода
-            input_positions.extend(r)
-        else:  # иначе посмотрим есть ли справа искомое имя перехода
-            for r_ in r:
-                if r_.name.lower() == t_name:
-                    output_positions.append(l)  # и если есть, то добавим
+    @staticmethod
+    def _fetch_positions(t: Transition, rules: List[_Rule]) -> Tuple[List[Any], List[Any]]:
+        """
+        Вычислить позиции входящих и выходящих точек из перехода
+        rules:
+            [Rule(l=Entity(name='T1'), r=[Entity(name='P1', points='0')]),
+             Rule(l=Entity(name='P1', points='0'), r=[Entity(name='T2'), Entity(name='T4')]),
+             Rule(l=Entity(name='T2'), r=[Entity(name='P1', points='0'), Entity(name='P1', points='0'), Entity(name='P2', points='0')]),
+             Rule(l=Entity(name='P2', points='0'), r=[Entity(name='T3'), Entity(name='T4')]),
+             Rule(l=Entity(name='T4'), r=[Entity(name='P3', points='0'), Entity(name='P4', points='0')])]
+        """
+        t_name = t.name.lower()  # имя перехода
+        input_positions = []  # позиции, куда ведет переход
+        output_positions = []  # позиции откуда исходит переход
 
-    return output_positions, input_positions
+        for l, r in rules:
+            if l.name.lower() == t_name:  # если слева искомое имя перехода
+                input_positions.extend(r)
+            else:  # иначе посмотрим есть ли справа искомое имя перехода
+                for r_ in r:
+                    if r_.name.lower() == t_name:
+                        output_positions.append(l)  # и если есть, то добавим
 
+        return output_positions, input_positions
 
-def parse_rules(positions: List[Position], transitions: List[Transition], rules: List[Union[str, tuple]]) -> Dict[Transition, Tuple[List[Position], List[Position]]]:
-    """
-    Обработать входные правила
+    def parse_rules(self, positions: List[Position], transitions: List[Transition], rules: List[Union[str, tuple]]) -> Dict[Transition, Tuple[List[Position], List[Position]]]:
+        """
+        Обработать входные правила
 
-    transitions_to_positions:
+        transitions_to_positions:
 
-      {Entity(name='T1'): ([], [Entity(name='P1', points='0')]),
-       Entity(name='T2'): ([Entity(name='P1', points='0')],
-                           [Entity(name='P1', points='0'),
-                            Entity(name='P1', points='0'),
-                            Entity(name='P2', points='0')]),
-       Entity(name='T3'): ([Entity(name='P2', points='0')], []),
-       Entity(name='T4'): ([Entity(name='P1', points='0'),
-                            Entity(name='P2', points='0')],
-                           [Entity(name='P3', points='0'),
-                            Entity(name='P4', points='0')])}
-    """
-    transitions_to_positions = {}
-    prepared_rules = []
+          {Entity(name='T1'): ([], [Entity(name='P1', points='0')]),
+           Entity(name='T2'): ([Entity(name='P1', points='0')],
+                               [Entity(name='P1', points='0'),
+                                Entity(name='P1', points='0'),
+                                Entity(name='P2', points='0')]),
+           Entity(name='T3'): ([Entity(name='P2', points='0')], []),
+           Entity(name='T4'): ([Entity(name='P1', points='0'),
+                                Entity(name='P2', points='0')],
+                               [Entity(name='P3', points='0'),
+                                Entity(name='P4', points='0')])}
+        """
+        transitions_to_positions = {}
+        prepared_rules = []
+        all_entities = positions + transitions
 
-    splitter = re.compile(r'(\w+)\s*->\s*(.*)')
-    quantifier_parser = re.compile(r'(?:(\d+)\s*\*\s*)?(\w+\d+)')
+        for rule in rules:
+            from_part, to_part = re.match(self._PART_SPLITTER, rule).groups()
 
-    for rule in rules:
-        left, right = re.match(splitter, rule).groups()
+            from_part = find_entity_by_name(all_entities, from_part)
+            to_part = re.findall(self._QUANTIFIER_SPLITTER, to_part)
 
-        left = find_entity_by_name(positions + transitions, left)
+            processed_r = []
+            for quantifier, entity_name in to_part:  # elem = ('2', 'P1)  # 2 * P1
+                for _ in range(int(quantifier) if quantifier else 1):
+                    processed_r.append(find_entity_by_name(all_entities, entity_name))
 
-        right = re.findall(quantifier_parser, right)
+            prepared_rules.append(self._Rule(from_part, processed_r))  # прим. Rule(l='T2', r=('P1',)
 
-        processed_r = []
-        for quantifier, entity_name in right:  # elem = ('2', 'P1)  # 2 * P1
-            for _ in range(int(quantifier) if quantifier else 1):
-                processed_r.append(find_entity_by_name(transitions + positions, entity_name))
+        for t in transitions:  # доделаем, получим словарь соответсвия позиций переходам
+            transitions_to_positions[t] = self._fetch_positions(t, prepared_rules)
 
-        prepared_rules.append(Rule(left, processed_r))  # прим. Rule(l='T2', r=('P1',)
-
-    for t in transitions:  # доделаем, получим словарь соответсвия позиций переходам
-        transitions_to_positions[t] = fetch_positions(t, prepared_rules)
-
-    return transitions_to_positions
+        return transitions_to_positions
 
 
 class PNet:
@@ -150,7 +149,7 @@ class PNet:
         self.name = name  # имя сети
         self.positions = positions
         self.transitions = transitions
-        self.rules = parse_rules(positions, transitions, rules)
+        self.rules = Parser().parse_rules(positions, transitions, rules)
 
     def model(self, transition_chain: List[str]) -> List:
         """
@@ -180,7 +179,7 @@ class PNet:
                 results.append(t_name)
                 print_state('State after step:')
 
-        except PointError as e:
+        except EntityError as e:
             print_state('>>> Break: ' + str(e))
 
         return results
@@ -196,7 +195,6 @@ class PNet:
 
 
 if __name__ == '__main__':
-
     pnet = PNet('Petri1',
                 positions=[
                     Position('P1', 0),
@@ -222,7 +220,9 @@ if __name__ == '__main__':
 
     path = ['T1', 'T2', 'T2', 'T2']
     print('Target path: ', path)
+
     result = pnet.model(path)
+
     if result:
         print('Executed transitions: ', ' -> '.join(result))
     else:
