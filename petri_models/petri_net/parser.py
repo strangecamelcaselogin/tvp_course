@@ -3,8 +3,8 @@ from collections import namedtuple
 
 from typing import List, Union, Any, Dict, Tuple
 
-from entities import Position, Transition
-from utils import find_entity_by_name
+from petri_models.petri_net.entities import Position, Transition
+from petri_models.petri_net.utils import find_entity_by_name
 
 
 class Parser:

@@ -20,7 +20,7 @@ class Entity:
 class Position(Entity):
     _FIELDS = ['name', 'points']
 
-    def __init__(self, name: str, points: int):
+    def __init__(self, name: str, points: int = 0):
         """
         :param name: имя точки
         :param points: количество фишек

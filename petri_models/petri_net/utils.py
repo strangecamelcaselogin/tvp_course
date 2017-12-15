@@ -1,6 +1,6 @@
 from typing import TypeVar, List
 
-from entities import Position,  Transition
+from petri_models.petri_net.entities import Position,  Transition
 
 class EntitySearchError(Exception):
     """
