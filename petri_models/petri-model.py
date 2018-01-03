@@ -30,9 +30,14 @@ if __name__ == '__main__':
     path = ['T1', 'T2', 'T2', 'T2']
     print('Target path: ', path)
 
-    result = pnet.model(path)
+    success, state, result = pnet.model(path)
 
+    print('Success' if success else 'Fail')
     if result:
-        print('Executed transitions: ', ' -> '.join(result))
+        print('Executed transitions:', ' -> '.join(result))
     else:
         print('>>> None of transitions were executed')
+
+    print('State AFTER last transition:', state)
+
+    print('#' * 40)

@@ -15,18 +15,22 @@ class PNet:
         self.transitions = transitions
         self.rules = Parser().parse_rules(positions, transitions, rules)
 
-    def model(self, transition_chain: List[str]) -> List:
+    def model(self, transition_chain: List[str]):
         """
         :param transition_chain: ['T1', 'T2]
         :return: bool
         """
+        def get_state():
+            return [p.points for p in self.positions]
+
         def print_state(msg):
             print(msg)
             for p in self.positions:
                 print(p)
             print()
 
-        results = []
+        success = True
+        path = []
         try:
             for idx, t_name in enumerate(transition_chain):
                 print("\nStep {} - '{}'".format(idx + 1, t_name))
@@ -35,18 +39,23 @@ class PNet:
                 from_positions, to_positions = self.rules[transition]
 
                 for p in from_positions:
-                    p.sub_points(1)  # Бросит исклбючение
+                    p.points -= 1  # Бросит исклбючение
 
                 for p in to_positions:
-                    p.add_points(1)
+                    p.points += 1
 
-                results.append(t_name)
+                path.append(t_name)
                 print_state('State after step:')
 
         except EntityError as e:
+            success = False
             print_state('>>> Break: ' + str(e))
 
-        return results
+        return success, get_state(), path
+
+    def set_points(self, points_vector):
+        for pos, points in zip(self.positions, points_vector):
+            pos.points = points
 
     def print(self):
         pprint({
