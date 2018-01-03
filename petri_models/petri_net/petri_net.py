@@ -8,6 +8,62 @@ from petri_models.petri_net.parser import Parser
 from petri_models.petri_net.utils import find_entity_by_name
 
 
+def test():
+    test_pass = '>>>>>> Test pass <<<<<<<<'
+    pnet = PNet('Petri1',
+                positions=[
+                    Position('P1', 0),
+                    Position('P2', 0),
+                    Position('P3', 0),
+                    Position('P4', 0)
+                ],
+                transitions=[
+                    Transition('T1'),
+                    Transition('T2'),
+                    Transition('T3'),
+                    Transition('T4'),
+                ],
+                rules=[
+                    'T1 -> P1',
+                    'P1 -> T2 T4',
+                    'T2 -> 2*P1 P2',
+                    'P2 -> T3 T4',
+                    'T4 -> P3 P4'
+                ])
+
+    path = []
+    success, state, result = pnet.model(path)
+    assert success == True
+    assert state == [0, 0, 0, 0]
+    assert result == []
+    print(test_pass)
+    pnet.set_points([0, 0, 0, 0])
+
+    path = ['T1', 'T2', 'T2', 'T2']
+    success, state, result = pnet.model(path)
+    assert success == True
+    assert state == [4, 3, 0, 0]
+    assert result == path
+    print(test_pass)
+    pnet.set_points([0, 0, 0, 0])
+
+    path = ['T2']
+    success, state, result = pnet.model(path)
+    assert success == False
+    assert state == [-1, 0, 0, 0]
+    assert result == []
+    print(test_pass)
+    pnet.set_points([0, 0, 0, 0])
+
+    path = ['T1', 'T2', 'T3', 'T4']
+    success, state, result = pnet.model(path)
+    assert success == False
+    assert state == [1, -1, 0, 0]
+    assert result == ['T1', 'T2', 'T3']
+    print(test_pass)
+    pnet.set_points([0, 0, 0, 0])
+
+
 class PNet:
     def __init__(self, name: str, positions: List[Position], transitions: List[Transition], rules):
         self.name = name  # имя сети
@@ -72,3 +128,7 @@ class PNet:
     @classmethod
     def from_file(cls):
         pass
+
+
+if __name__ == '__main__':
+    test()
