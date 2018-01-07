@@ -69,12 +69,14 @@ class PNet:
         self.name = name  # имя сети
         self.positions = positions
         self.transitions = transitions
+        self.transition_names = [t.name for t in transitions]
         self.rules = Parser().parse_rules(positions, transitions, rules)
 
-    def model(self, transition_chain: List[str]):
+    def model(self, transition_chain: List[str], verbose=True):
         """
         :param transition_chain: ['T1', 'T2]
         :return: bool
+        :param verbose:
         """
         def get_state():
             return [p.points for p in self.positions]
@@ -89,7 +91,8 @@ class PNet:
         path = []
         try:
             for idx, t_name in enumerate(transition_chain):
-                print("\nStep {} - '{}'".format(idx + 1, t_name))
+                if verbose:
+                    print("\nStep {} - '{}'".format(idx + 1, t_name))
 
                 transition = find_entity_by_name(self.transitions, t_name)
                 from_positions, to_positions = self.rules[transition]
@@ -101,11 +104,14 @@ class PNet:
                     p.points += 1
 
                 path.append(t_name)
-                print_state('State after step:')
+
+                if verbose:
+                    print_state('State after step:')
 
         except EntityError as e:
             success = False
-            print_state('>>> Break: ' + str(e))
+            if verbose:
+                print_state('>>> Break: ' + str(e))
 
         return success, get_state(), path
 
