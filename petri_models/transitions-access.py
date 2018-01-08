@@ -19,26 +19,17 @@ class _Omega(float):
 Omega = _Omega()  # создадим единственный объект Омеги
 
 
-class OmegaPosition(Position):
-    def __init__(self, name, points):
-        super().__init__(name, points)
-
-    @property
-    def points(self):
-        return self._points
-
-    @points.setter
-    def points(self, count):
-        if self._points is not Omega:  # запишем в фишки все что угодно, если там не Омега
-            super(OmegaPosition, self.__class__).points.fset(self, count)
-
-
 class SolveTree:
     def __init__(self, state):
         self.root = SolveNode(None, state, None)
+        self.seen_states = set()
 
     def __str__(self):
         return str(self.root)
+
+    def add_node(self, parent: 'SolveNode', child: 'SolveNode'):
+        parent.children.append(child)
+        self.seen_states.add(tuple(child.state))
 
 
 class SolveNode:
@@ -48,9 +39,6 @@ class SolveNode:
         self.parent = parent
 
         self.children = []
-
-    def add_node(self, new_node):
-        self.children.append(new_node)
 
     def __str__(self, level=0):
         print_state = '({})'.format(' '.join(map(str, self.state)))
@@ -75,7 +63,15 @@ def process_state(old_state, new_state):
     return [n if n - o < 1 else Omega for o, n in zip(old_state, new_state)]
 
 
-def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transition, verbose=False):
+def get_verbose(enable):
+    def f(*args, **kwargs):
+        if enable:
+            print(*args, **kwargs)
+
+    return f
+
+
+def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transition, level=0, verbose=get_verbose(False), verbose_model=False):
     """
     Основной метод, рекурсивно перебираем все цепочки переходов и строим деерво допустимых.
 
@@ -85,30 +81,42 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
     :param transition: Переход, который мы попробуем выполнить
     :param verbose: Если указано, будет выводится лог действий, как от сети, так и от нас
     """
+    if transition is not None:
+        petri_net.set_state(solve_node.state)  # вернем состояние как у предка
+        success, state, path = petri_net.model([transition], verbose=False)
 
-    petri_net.set_points(solve_node.state)  # вернем состояние как у предка
-    success, state, path = petri_net.model([transition], verbose=verbose)
+        if success:
+            new_state = process_state(solve_node.state, state)  # обработаем состояние
 
-    if success:
-        new_state = process_state(solve_node.state, state)  # обработаем состояние
-        if new_state == solve_node.state:
-            if verbose:
-                print('tree break: old state {} != new state {} '.format(new_state, state))
-            return
+            br = tuple(new_state) in solve_tree.seen_states
 
-        new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
-        solve_node.add_node(new_solve_node)
+            verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state, '!break: state is the same' if br else ''))
 
-        for new_transition in petri_net.transition_names:
-            trace_path(petri_net, solve_tree, new_solve_node, new_transition)
+            if br:
+                return
+
+            new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
+            solve_tree.add_node(solve_node, new_solve_node)
+
+            for t in petri_net.transition_names:
+                trace_path(petri_net, solve_tree, new_solve_node, t, verbose=verbose, verbose_model=verbose_model, level=level+1)
+        else:
+            verbose('{}transition {} failed'.format('    ' * level, transition))
+
+    else:
+        for t in petri_net.transition_names:
+            trace_path(petri_net, solve_tree, solve_node, t, verbose=verbose, verbose_model=verbose_model, level=level + 1)
 
 
 if __name__ == '__main__':
+    verbose_trace = False
+    verbose_model = False
+
     initial_state = [0, 0, 0, 0]
     t_names = ['T1', 'T2', 'T3', 'T4']
 
     pnet = PNet('Petri1',
-                positions=[OmegaPosition('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
+                positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
                 transitions=[Transition(n) for n in t_names],
                 rules=[
                     'T1 -> P1',
@@ -120,6 +128,51 @@ if __name__ == '__main__':
 
     st = SolveTree(initial_state)
 
-    trace_path(pnet, st, st.root, 'T1')
+    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
     print('Дерево доступных переходов:\n', st)
+
+
+    initial_state = [1, 0, 0]
+    t_names = ['T1', 'T2', 'T3', 'T4']
+
+    pnet = PNet('Petri2',
+                positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
+                transitions=[Transition(n) for n in t_names],
+                rules=[
+                    'T1 -> P1',
+                    'P1 -> T2',
+                    'T2 -> P2',
+                    'P2 -> T3',
+                    'T3 -> P3',
+                    'P3 -> T4'
+                ])
+
+    st = SolveTree(initial_state)
+
+    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
+
+    print('2 Дерево доступных переходов:\n', st)
+
+    initial_state = [0] * 7
+    t_names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+    pnet = PNet('Petri2',
+                positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
+                transitions=[Transition(n) for n in t_names],
+                rules=[
+                    'T1 -> P1',
+                    'P1 -> T2 T3',
+                    'T2 -> P2',
+                    'P2 -> T4 T5',
+                    'T4 -> P4',
+                    'P4 -> T6 T7',
+                    'T5 -> P5',
+                    'T3 -> P3'
+                ])
+
+    st = SolveTree(initial_state)
+
+    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
+
+    print('3 Дерево доступных переходов:\n', st)

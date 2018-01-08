@@ -37,7 +37,7 @@ def test():
     assert state == [0, 0, 0, 0]
     assert result == []
     print(test_pass)
-    pnet.set_points([0, 0, 0, 0])
+    pnet.set_state([0, 0, 0, 0])
 
     path = ['T1', 'T2', 'T2', 'T2']
     success, state, result = pnet.model(path)
@@ -45,7 +45,7 @@ def test():
     assert state == [4, 3, 0, 0]
     assert result == path
     print(test_pass)
-    pnet.set_points([0, 0, 0, 0])
+    pnet.set_state([0, 0, 0, 0])
 
     path = ['T2']
     success, state, result = pnet.model(path)
@@ -53,7 +53,7 @@ def test():
     assert state == [-1, 0, 0, 0]
     assert result == []
     print(test_pass)
-    pnet.set_points([0, 0, 0, 0])
+    pnet.set_state([0, 0, 0, 0])
 
     path = ['T1', 'T2', 'T3', 'T4']
     success, state, result = pnet.model(path)
@@ -61,7 +61,7 @@ def test():
     assert state == [1, -1, 0, 0]
     assert result == ['T1', 'T2', 'T3']
     print(test_pass)
-    pnet.set_points([0, 0, 0, 0])
+    pnet.set_state([0, 0, 0, 0])
 
 
 class PNet:
@@ -115,7 +115,7 @@ class PNet:
 
         return success, get_state(), path
 
-    def set_points(self, points_vector):
+    def set_state(self, points_vector):
         for pos, points in zip(self.positions, points_vector):
             pos.points = points
 
