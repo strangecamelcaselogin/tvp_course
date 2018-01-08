@@ -79,7 +79,9 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
     :param solve_tree: Дерево решений
     :param solve_node: Текущий узел в дереве решений
     :param transition: Переход, который мы попробуем выполнить
-    :param verbose: Если указано, будет выводится лог действий, как от сети, так и от нас
+    :param level: глубина рекурсивного вызова, для принтов
+    :param verbose: Фкнкция полученная от get_verbose, будет выводится лог действий от нас
+    :param verbose_model: Если указано, будет выводится лог действий от модели
     """
     if transition is not None:
         petri_net.set_state(solve_node.state)  # вернем состояние как у предка
@@ -90,7 +92,7 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
 
             br = tuple(new_state) in solve_tree.seen_states
 
-            verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state, '!break: state is the same' if br else ''))
+            verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state, '!break: state already exist' if br else ''))
 
             if br:
                 return
@@ -114,7 +116,6 @@ if __name__ == '__main__':
 
     initial_state = [0, 0, 0, 0]
     t_names = ['T1', 'T2', 'T3', 'T4']
-
     pnet = PNet('Petri1',
                 positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
                 transitions=[Transition(n) for n in t_names],
@@ -130,12 +131,11 @@ if __name__ == '__main__':
 
     trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
-    print('Дерево доступных переходов:\n', st)
+    print('\n\n\nДерево доступных переходов:\n', st)
 
 
-    initial_state = [1, 0, 0]
+    initial_state = [0, 0, 0]
     t_names = ['T1', 'T2', 'T3', 'T4']
-
     pnet = PNet('Petri2',
                 positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
                 transitions=[Transition(n) for n in t_names],
@@ -152,12 +152,12 @@ if __name__ == '__main__':
 
     trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
-    print('2 Дерево доступных переходов:\n', st)
+    print('\n\n\n2 Дерево доступных переходов:\n', st)
 
-    initial_state = [0] * 7
+
+    initial_state = [0] * 5
     t_names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
-
-    pnet = PNet('Petri2',
+    pnet = PNet('Petri3',
                 positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
                 transitions=[Transition(n) for n in t_names],
                 rules=[
@@ -175,4 +175,4 @@ if __name__ == '__main__':
 
     trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
-    print('3 Дерево доступных переходов:\n', st)
+    print('\n\n\n3 Дерево доступных переходов:\n', st)
