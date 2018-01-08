@@ -87,7 +87,7 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
     """
 
     petri_net.set_points(solve_node.state)  # вернем состояние как у предка
-    success, state, path = petri_net.model(transition, verbose=verbose)
+    success, state, path = petri_net.model([transition], verbose=verbose)
 
     if success:
         new_state = process_state(solve_node.state, state)  # обработаем состояние
@@ -96,11 +96,11 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
                 print('tree break: old state {} != new state {} '.format(new_state, state))
             return
 
-        new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)  # todo разобраться с переходом и массивом из одного перехода
+        new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
         solve_node.add_node(new_solve_node)
 
         for new_transition in petri_net.transition_names:
-            trace_path(petri_net, solve_tree, new_solve_node, [new_transition])
+            trace_path(petri_net, solve_tree, new_solve_node, new_transition)
 
 
 if __name__ == '__main__':
@@ -120,6 +120,6 @@ if __name__ == '__main__':
 
     st = SolveTree(initial_state)
 
-    trace_path(pnet, st, st.root, ['T1'])
+    trace_path(pnet, st, st.root, 'T1')
 
     print('Дерево доступных переходов:\n', st)
