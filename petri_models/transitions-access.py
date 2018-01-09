@@ -26,14 +26,9 @@ def isOmega(t):
 class SolveTree:
     def __init__(self, state):
         self.root = SolveNode(None, state, None)
-        self.seen_states = set()  # TODO искать на пути от узла до корня, а не везде
 
     def __str__(self):
         return str(self.root)
-
-    def add_node(self, parent: 'SolveNode', child: 'SolveNode'):
-        parent.children.append(child)
-        self.seen_states.add(tuple(child.state))
 
 
 class SolveNode:
@@ -43,6 +38,17 @@ class SolveNode:
         self.parent = parent
 
         self.children = []
+
+    def add(self, new_child: 'SolveNode'):
+        self.children.append(new_child)
+
+    def get_parents(self):
+        if self.parent:
+            parents = [self.parent]
+            parents.extend(self.parent.get_parents())
+            return parents
+        else:
+            return []
 
     def __str__(self, level=0):
         print_state = '({})'.format(' '.join(map(str, self.state)))
@@ -64,24 +70,35 @@ def process_state(old_state, new_state):
       иначе оставим как есть
     :return Новый стейт
     """
-    for i, s in enumerate(new_state[:]):
-        if isOmega(s):
-            new_state[i] = Omega
+    success = True
+    l = len(new_state)
+    result = [0] * l
+    for i in range(l):
+        o, n = old_state[i], new_state[i]
 
-    diff = [n-o if not isOmega(o) or not isOmega(n) else Omega for o, n in zip(old_state, new_state)]
+        if isOmega(n):
+            new_state[i] = result[i] = n = Omega
 
-    all_positive = True
-    for d in diff:
-        if not isOmega(d) and d < 0:
-            all_positive = False
-            break
-
-    if all_positive:
-        for i, d in enumerate(diff):
+        if not isOmega(o) and not isOmega(n):
+            d = n - o
             if d > 0:
-                new_state[i] = Omega
+                result[i] = Omega
+            elif d < 0:
+                success = False
+                break
+
+    if success:
+        return result
 
     return new_state
+
+
+def state_in(state, states):
+    for s in states:
+        if state == s.state:
+            return True
+
+    return False
 
 
 def get_verbose(enable):
@@ -112,18 +129,19 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
         if success:
             new_state = process_state(solve_node.state, state)  # обработаем состояние
 
-            br = tuple(new_state) in solve_tree.seen_states
+            new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
 
-            verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state, '!break: state already exist' if br else ''))
+            br = state_in(new_state, new_solve_node.get_parents())
+
+            verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state,
+                                                  '!break: state already exist' if br else ''))
 
             if br:
                 if full_tree:
-                    new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
-                    solve_tree.add_node(solve_node, new_solve_node)
+                    solve_node.add(new_solve_node)
                 return
 
-            new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
-            solve_tree.add_node(solve_node, new_solve_node)
+            solve_node.add(new_solve_node)
 
             for t in petri_net.transition_names:
                 trace_path(petri_net, solve_tree, new_solve_node, t, full_tree=full_tree, verbose=verbose, verbose_model=verbose_model, level=level+1)
