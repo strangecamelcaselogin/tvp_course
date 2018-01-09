@@ -71,7 +71,7 @@ def get_verbose(enable):
     return f
 
 
-def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transition, level=0, verbose=get_verbose(False), verbose_model=False):
+def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transition, full_tree=False, level=0, verbose=get_verbose(False), verbose_model=False):
     """
     Основной метод, рекурсивно перебираем все цепочки переходов и строим деерво допустимых.
 
@@ -79,8 +79,9 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
     :param solve_tree: Дерево решений
     :param solve_node: Текущий узел в дереве решений
     :param transition: Переход, который мы попробуем выполнить
+    :param full_tree: Если указано, то будет вычеслено полное дерево покрытия
     :param level: глубина рекурсивного вызова, для принтов
-    :param verbose: Фкнкция полученная от get_verbose, будет выводится лог действий от нас
+    :param verbose: Функция полученная от get_verbose, будет выводится лог действий от нас
     :param verbose_model: Если указано, будет выводится лог действий от модели
     """
     if transition is not None:
@@ -95,24 +96,28 @@ def trace_path(petri_net, solve_tree: SolveTree, solve_node: SolveNode, transiti
             verbose('{}{}  --{}-->  {} {}'.format('    ' * level, solve_node.state, transition, new_state, '!break: state already exist' if br else ''))
 
             if br:
+                if full_tree:
+                    new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
+                    solve_tree.add_node(solve_node, new_solve_node)
                 return
 
             new_solve_node = SolveNode(transition, state=new_state, parent=solve_node)
             solve_tree.add_node(solve_node, new_solve_node)
 
             for t in petri_net.transition_names:
-                trace_path(petri_net, solve_tree, new_solve_node, t, verbose=verbose, verbose_model=verbose_model, level=level+1)
+                trace_path(petri_net, solve_tree, new_solve_node, t, full_tree=full_tree, verbose=verbose, verbose_model=verbose_model, level=level+1)
         else:
             verbose('{}transition {} failed'.format('    ' * level, transition))
 
     else:
         for t in petri_net.transition_names:
-            trace_path(petri_net, solve_tree, solve_node, t, verbose=verbose, verbose_model=verbose_model, level=level + 1)
+            trace_path(petri_net, solve_tree, solve_node, t, full_tree=full_tree, verbose=verbose, verbose_model=verbose_model, level=level + 1)
 
 
 if __name__ == '__main__':
     verbose_trace = False
     verbose_model = False
+    full_tree = True
 
     initial_state = [0, 0, 0, 0]
     t_names = ['T1', 'T2', 'T3', 'T4']
@@ -129,7 +134,7 @@ if __name__ == '__main__':
 
     st = SolveTree(initial_state)
 
-    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
+    trace_path(pnet, st, st.root, None, full_tree=full_tree, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
     print('\n\n\nДерево доступных переходов:\n', st)
 
@@ -150,7 +155,7 @@ if __name__ == '__main__':
 
     st = SolveTree(initial_state)
 
-    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
+    trace_path(pnet, st, st.root, None, full_tree=full_tree, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
     print('\n\n\n2 Дерево доступных переходов:\n', st)
 
@@ -173,6 +178,6 @@ if __name__ == '__main__':
 
     st = SolveTree(initial_state)
 
-    trace_path(pnet, st, st.root, None, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
+    trace_path(pnet, st, st.root, None, full_tree=full_tree, verbose=get_verbose(verbose_trace), verbose_model=verbose_model)
 
     print('\n\n\n3 Дерево доступных переходов:\n', st)
