@@ -19,10 +19,14 @@ class _Omega(float):
 Omega = _Omega()  # создадим единственный объект Омеги
 
 
+def isOmega(t):
+    return t != t
+
+
 class SolveTree:
     def __init__(self, state):
         self.root = SolveNode(None, state, None)
-        self.seen_states = set()
+        self.seen_states = set()  # TODO искать на пути от узла до корня, а не везде
 
     def __str__(self):
         return str(self.root)
@@ -60,7 +64,24 @@ def process_state(old_state, new_state):
       иначе оставим как есть
     :return Новый стейт
     """
-    return [n if n - o < 1 else Omega for o, n in zip(old_state, new_state)]
+    for i, s in enumerate(new_state[:]):
+        if isOmega(s):
+            new_state[i] = Omega
+
+    diff = [n-o if not isOmega(o) or not isOmega(n) else Omega for o, n in zip(old_state, new_state)]
+
+    all_positive = True
+    for d in diff:
+        if not isOmega(d) and d < 0:
+            all_positive = False
+            break
+
+    if all_positive:
+        for i, d in enumerate(diff):
+            if d > 0:
+                new_state[i] = Omega
+
+    return new_state
 
 
 def get_verbose(enable):
@@ -160,20 +181,23 @@ if __name__ == '__main__':
     print('\n\n\n2 Дерево доступных переходов:\n', st)
 
 
-    initial_state = [0] * 5
-    t_names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+    initial_state = [1, 0, 0, 0, 0, 0]
+    t_names = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
     pnet = PNet('Petri3',
-                positions=[Position('P' + str(idx + 1), p) for idx, p in enumerate(initial_state)],
+                positions=[Position('P' + str(idx), p) for idx, p in enumerate(initial_state)],
                 transitions=[Transition(n) for n in t_names],
                 rules=[
+                    'P0 -> T1',
                     'T1 -> P1',
                     'P1 -> T2 T3',
                     'T2 -> P2',
-                    'P2 -> T4 T5',
+                    'P2 -> T4 T5 T8',
                     'T4 -> P4',
                     'P4 -> T6 T7',
                     'T5 -> P5',
-                    'T3 -> P3'
+                    'T3 -> P3',
+                    'T8 -> P0',
+                    'T1 -> P0'  # todo не забыть, что это лишнее
                 ])
 
     st = SolveTree(initial_state)
